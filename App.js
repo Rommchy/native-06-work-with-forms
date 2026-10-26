@@ -25,6 +25,7 @@ export default function App() {
     getValues,
     formState: { errors },
     trigger,
+    reset,
   } = useForm({
     defaultValues: {
       nameInputValue: "",
@@ -228,15 +229,16 @@ export default function App() {
         <TouchableOpacity
           style={{ ...styles.button, marginTop: 50 }}
           title="Submit"
-          onPress={handleSubmit((formData) =>
+          onPress={handleSubmit((formData) => {
             sendData({
               userName: formData.nameInputValue,
               email: formData.emailInputValue,
               roomType: formData.selectedValue,
               checkInDate: formData.checkInPicker,
               checkOutDate: formData.checkOutPicker,
-            }),
-          )}
+            });
+            reset();
+          })}
         >
           <Text style={styles.buttonText}>Submit</Text>
         </TouchableOpacity>
