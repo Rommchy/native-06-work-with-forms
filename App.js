@@ -5,45 +5,238 @@ import {
   View,
   TextInput,
   TouchableOpacity,
+  Platform,
+  Pressable,
 } from "react-native";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
+import { useForm, Controller } from "react-hook-form";
 import { sendData } from "./services/sendData";
+import { Picker } from "@react-native-picker/picker";
 
 export default function App() {
-  const data = {};
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const {
+    control,
+    handleSubmit,
+    getValues,
+    formState: { errors },
+    trigger,
+  } = useForm({
+    defaultValues: {
+      nameInputValue: "",
+      emailInputValue: "",
+      checkInPicker: new Date(),
+      checkOutPicker: null,
+      selectedValue: "standard",
+    },
+  });
+
   return (
     <View style={styles.container}>
       <View>
         <Text style={styles.formHeader}>Booking form</Text>
         <Text style={styles.formTitle}>Name</Text>
-        <TextInput testID="user-name-input" style={styles.input} />
-        <Text style={styles.errorText}>Name is required</Text>
-        <Text style={styles.errorText}>
-          Name must start with a capital letter and contain at least 3
-          characters
-        </Text>
-        <Text style={styles.formTitle}>email</Text>
-        <TextInput testID="email-input" style={styles.input} />
-        <Text style={styles.errorText}>e-mail is required</Text>
-        <Text style={styles.errorText}>
-          Invalid email address. Please enter a valid email
-        </Text>
-        <Text style={styles.formTitle}>Check-In Date</Text>
-        <TextInput testID="date-time-picker" style={styles.input} defaultValue={(new Date()).toLocaleString()}/>
-        <Text style={styles.formTitle}>Check-Out Date</Text>
-        <TextInput testID="date-time-picker" style={styles.input} />
-        <Text style={styles.errorText}>Check-Out Date is required</Text>
-        <Text style={styles.errorText}>
-          The Check-Out Date must be later than the Check-In Date
-        </Text>
-        <Text style={styles.formTitle}>Choose the room type:</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="choose: Standard/Luxury/Family"
+        <Controller
+          control={control}
+          name="nameInputValue"
+          rules={{
+            required: { value: true, message: "Name is required" },
+            pattern: {
+              value: /^[A-Z].{2,}$/,
+              message:
+                "Name must start with a capital letter and contain at least 3 characters",
+            },
+          }}
+          render={({ field: { onChange, value } }) => {
+            return (
+              <TextInput
+                testID="user-name-input"
+                style={styles.input}
+                onChangeText={(text) => {
+                  onChange(text);
+                  trigger();
+                }}
+                value={value}
+                placeholder="Insert your name..."
+              />
+            );
+          }}
         />
+        {errors.nameInputValue && (
+          <Text style={styles.errorText}>{errors.nameInputValue.message}</Text>
+        )}
+        <Text style={styles.formTitle}>email</Text>
+        <Controller
+          control={control}
+          name="emailInputValue"
+          rules={{
+            required: { value: true, message: "E-mail is required" },
+            pattern: {
+              value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-z]{2,}$/,
+              message: "Invalid email address. Please enter a valid email",
+            },
+          }}
+          render={({ field: { onChange, value } }) => {
+            return (
+              <TextInput
+                testID="email-input"
+                style={styles.input}
+                onChangeText={(text) => {
+                  onChange(text);
+                  trigger();
+                }}
+                value={value}
+                placeholder="Insert your email..."
+              />
+            );
+          }}
+        />
+
+        {errors.emailInputValue && (
+          <Text style={styles.errorText}>{errors.emailInputValue.message}</Text>
+        )}
+        <Text style={styles.formTitle}>Check-In Date</Text>
+        <Controller
+          control={control}
+          name="checkInPicker"
+          rules={{}}
+          render={({ field: { onChange, value } }) => {
+            const handleChange = (event, selectedDate) => {
+              if (event.type === "dismissed" || !selectedDate) return;
+              onChange(selectedDate);
+              trigger();
+            };
+
+            if (Platform.OS === "ios") {
+              return (
+                <DateTimePicker
+                  testID="date-time-picker"
+                  mode="date"
+                  style={styles.input}
+                  minimumDate={new Date()}
+                  value={value}
+                  onChange={handleChange}
+                />
+              );
+            }
+
+            return (
+              <Pressable
+                style={styles.input}
+                onPress={() =>
+                  DateTimePickerAndroid.open({
+                    value,
+                    mode: "date",
+                    minimumDate: new Date(),
+                    onChange: handleChange,
+                  })
+                }
+              >
+                <Text>{value.toLocaleDateString("uk-UA")}</Text>
+              </Pressable>
+            );
+          }}
+        />
+        <Text style={styles.formTitle}>Check-Out Date</Text>
+        <Controller
+          control={control}
+          name="checkOutPicker"
+          rules={{
+            required: { value: true, message: "Check-Out Date is required" },
+            validate: () => {
+              const { checkInPicker, checkOutPicker } = getValues();
+              const day = (d) =>
+                new Date(d.getFullYear(), d.getMonth(), d.getDate());
+              return (
+                day(checkOutPicker) > day(checkInPicker) ||
+                "The Check-Out Date must be later than the Check-In Date"
+              );
+            },
+          }}
+          render={({ field: { onChange, value } }) => {
+            const handleChange = (event, selectedDate) => {
+              if (event.type === "dismissed" || !selectedDate) return;
+              onChange(selectedDate);
+              trigger();
+            };
+
+            if (Platform.OS === "ios") {
+              return (
+                <DateTimePicker
+                  testID="date-time-picker"
+                  mode="date"
+                  style={styles.input}
+                  minimumDate={tomorrow}
+                  value={value || tomorrow}
+                  onChange={handleChange}
+                />
+              );
+            }
+
+            return (
+              <Pressable
+                style={styles.input}
+                onPress={() =>
+                  DateTimePickerAndroid.open({
+                    value: value || tomorrow,
+                    mode: "date",
+                    minimumDate: tomorrow,
+                    onChange: handleChange,
+                  })
+                }
+              >
+                <Text>
+                  {value ? value.toLocaleDateString("uk-UA") : "Select date"}
+                </Text>
+              </Pressable>
+            );
+          }}
+        />
+        {errors.checkOutPicker && (
+          <Text style={styles.errorText}>{errors.checkOutPicker.message}</Text>
+        )}
+
+        <Text style={styles.formTitle}>Choose the room type:</Text>
+        <Controller
+          control={control}
+          name="selectedValue"
+          rules={{}}
+          render={({ field: { onChange, value } }) => {
+            return (
+              <Picker
+                style={styles.input}
+                selectedValue={value}
+                onValueChange={(value) => {
+                  onChange(value);
+                  trigger();
+                }}
+                value={value}
+                // placeholder="choose: Standard/Luxury/Family"
+              >
+                <Picker.Item label="Standard" value={"standard"} />
+                <Picker.Item label="Luxury" value={"luxury"} />
+                <Picker.Item label="Family" value={"family"} />
+              </Picker>
+            );
+          }}
+        />
+
         <TouchableOpacity
           style={{ ...styles.button, marginTop: 50 }}
           title="Submit"
-          onPress={() => sendData(data)}
+          onPress={handleSubmit((formData) =>
+            sendData({
+              userName: formData.nameInputValue,
+              email: formData.emailInputValue,
+              roomType: formData.selectedValue,
+              checkInDate: formData.checkInPicker,
+              checkOutDate: formData.checkOutPicker,
+            }),
+          )}
         >
           <Text style={styles.buttonText}>Submit</Text>
         </TouchableOpacity>
@@ -99,4 +292,3 @@ const styles = StyleSheet.create({
     color: "red",
   },
 });
-
